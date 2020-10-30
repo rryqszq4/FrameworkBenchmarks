@@ -10,19 +10,18 @@ The tests were run with [PHP Version 7.3.*](https://www.php.net/) + OPcache
 
 ### Platforms
 
-* [php-fpm 7.3.*](https://www.php.net/manual/en/install.fpm.php)
-* [nginx unit 1.9.0](https://unit.nginx.org/) (PHP 7.0)
-* [ngx-php 0.0.18](https://github.com/rryqszq4/ngx_php7) (Embeded php in nginx)
+* [php-fpm 7.4.*](https://www.php.net/manual/en/install.fpm.php)
+* [nginx unit 1.18.0](https://unit.nginx.org/) (PHP 7.4)
 
 ### Webservers
 
-* [nginx 1.15.9](https://nginx.org/)
-* [h2o 2.2.5](https://h2o.examp1e.net/)
+* [nginx 1.17.10](https://nginx.org/)
+* [h2o 2.2.6](https://h2o.examp1e.net/)
 
 ### Databases
 
-* [MySQL 5.7.27](https://dev.mysql.com/)
-* [PostgreSQL 11](https://www.postgresql.org/)
+* [MySQL 8](https://dev.mysql.com/)
+* [PostgreSQL 12](https://www.postgresql.org/)
 
 ## ActiveRecord
 

@@ -1,43 +1,66 @@
 <?php
 namespace controllers;
 
-use Ubiquity\orm\DAO;
+use Ubiquity\orm\SDAO;
 use models\World;
+use controllers\utils\DbTrait;
 
 /**
  * Bench controller.
  */
 class Db extends \Ubiquity\controllers\Controller {
+	use DbTrait;
+
+	public function __construct() {}
 
 	public function initialize() {
-		\header('Content-type: application/json');
-		\Ubiquity\cache\CacheManager::startProd(\Ubiquity\controllers\Startup::$config);
-		DAO::setModelDatabase(World::class);
+		\header('Content-Type: application/json');
+		\Ubiquity\cache\CacheManager::startProdFromCtrl();
 	}
-	
+
 	public function index() {
-		$world = DAO::getById(World::class, \mt_rand(1, 10000), false);
-		echo \json_encode($world->_rest);
+		echo \json_encode((SDAO::getById(World::class, [
+			'id' => \mt_rand(1, 10000)
+		], false))->_rest);
 	}
-	
+
 	public function query($queries = 1) {
 		$worlds = [];
-		$queries = \min(\max($queries, 1), 500);
-		for ($i = 0; $i < $queries; ++ $i) {
-			$worlds[] = (DAO::getById(World::class, \mt_rand(1, 10000), false))->_rest;
+		$count = $this->getCount($queries);
+		for ($i = 0; $i < $count; ++ $i) {
+			$worlds[] = (SDAO::getById(World::class, [
+				'id' => \mt_rand(1, 10000)
+			], false))->_rest;
 		}
 		echo \json_encode($worlds);
 	}
-	
+
 	public function update($queries = 1) {
 		$worlds = [];
-		$queries = \min(\max($queries, 1), 500);
-		for ($i = 0; $i < $queries; ++ $i) {
-			$world = DAO::getById(World::class, \mt_rand(1, 10000), false);
+
+		$count = $this->getCount($queries);
+		$ids = $this->getUniqueRandomNumbers($count);
+		foreach ($ids as $id) {
+			$world = SDAO::getById(World::class, [
+				'id' => $id
+			], false);
 			$world->randomNumber = \mt_rand(1, 10000);
-			DAO::update($world);
+			SDAO::toUpdate($world);
 			$worlds[] = $world->_rest;
 		}
+		SDAO::updateGroups($count);
+
 		echo \json_encode($worlds);
+	}
+
+	private function getUniqueRandomNumbers($count) {
+		$res = [];
+		do {
+			$res[\mt_rand(1, 10000)] = 1;
+		} while (\count($res) < $count);
+
+		\ksort($res); // prevent deadlocks (see https://github.com/TechEmpower/FrameworkBenchmarks/pull/5230#discussion_r345780701)
+
+		return \array_keys($res);
 	}
 }

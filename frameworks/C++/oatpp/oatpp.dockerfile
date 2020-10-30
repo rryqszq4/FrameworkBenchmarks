@@ -1,11 +1,4 @@
-FROM debian:9
-
-RUN apt-get update
-
-RUN apt-get install -yqq cmake
-RUN apt-get install -yqq build-essential
-
-RUN apt-get install -yqq git
+FROM lganzzzo/ubuntu-cmake-mimalloc
 
 #---------------------------------------------------------------
 # install oatpp
@@ -16,23 +9,23 @@ RUN git clone https://github.com/oatpp/oatpp
 
 WORKDIR /test/oatpp
 
-RUN git checkout 68bbb14ec4bb6b67cfb5917c7c1ed9201f82d341
+RUN git checkout 4cd37af26ffa55231f11649106a1bb33a3244cd1
 
 WORKDIR /test/oatpp/build
 
-RUN cmake -DCMAKE_BUILD_TYPE=Release -DOATPP_BUILD_TESTS=OFF ..
+RUN cmake -DOATPP_DISABLE_ENV_OBJECT_COUNTERS=ON -DCMAKE_BUILD_TYPE=Release -DOATPP_BUILD_TESTS=OFF ..
 RUN make install
 
 #---------------------------------------------------------------
 # build test app
 
-ADD src-async /test/src-async
+ADD src-thread /test/src-thread
 
-WORKDIR /test/src-async/build
+WORKDIR /test/src-thread/build
 
 RUN cmake -DCMAKE_BUILD_TYPE=Release ..
 RUN make
 
 EXPOSE 8000 8000
 
-CMD ./oatpp-async-test
+CMD ./oatpp-thread-test

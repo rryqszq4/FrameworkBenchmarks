@@ -1,15 +1,16 @@
-FROM php:7.3
+FROM php:7.4
 
-ENV SWOOLE_VERSION=4.4.5
+RUN apt-get update > /dev/null
 
-RUN cd /tmp && curl -sSL "https://github.com/swoole/swoole-src/archive/v${SWOOLE_VERSION}.tar.gz" | tar xzf - \
-        && cd swoole-src-${SWOOLE_VERSION} \
-        && phpize && ./configure > /dev/null && make > /dev/null && make install > /dev/null \
-        && docker-php-ext-enable swoole
+RUN pecl install swoole > /dev/null && \
+    docker-php-ext-enable swoole
 
-RUN docker-php-ext-install pdo_mysql pcntl > /dev/null
+RUN apt-get install -y libpq-dev \
+    && docker-php-ext-configure pgsql -with-pgsql=/usr/local/pgsql \
+    && docker-php-ext-install pdo pdo_pgsql pgsql > /dev/null
 
-COPY deploy/conf/php-swoole.ini /usr/local/etc/php/
+COPY deploy/conf/php-async.ini /usr/local/etc/php/php.ini
+RUN echo "zend_extension=opcache.so" >> /usr/local/etc/php/php.ini
 
 ADD ./ /ubiquity
 WORKDIR /ubiquity
@@ -28,5 +29,11 @@ RUN php composer.phar require phpmv/ubiquity-devtools:dev-master phpmv/ubiquity-
 RUN php composer.phar install --optimize-autoloader --classmap-authoritative --no-dev --quiet
 
 RUN chmod 777 -R /ubiquity/.ubiquity/*
+
+RUN echo "opcache.preload=/ubiquity/app/config/preloader.script.php" >> /usr/local/etc/php/php.ini
+
+USER www-data
+
+COPY deploy/conf/swoole/pgsql/swooleServices.php app/config/swooleServices.php
 
 CMD /ubiquity/vendor/bin/Ubiquity serve -t=swoole -p=8080 -h=0.0.0.0

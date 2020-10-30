@@ -20,6 +20,7 @@ RUN ["/bin/bash", "-c", "debconf-set-selections <<< \"mysql-server mysql-server/
 RUN ["/bin/bash", "-c", "debconf-set-selections <<< \"mysql-community-server mysql-community-server/data-dir select 'Y'\""]
 RUN ["/bin/bash", "-c", "debconf-set-selections <<< \"mysql-community-server mysql-community-server/root-pass password secret\""]
 RUN ["/bin/bash", "-c", "debconf-set-selections <<< \"mysql-community-server mysql-community-server/re-root-pass password secret\""]
+RUN echo "Installing mysql-server version: $(apt-cache policy mysql-server | grep -oP "(?<=Candidate: )(.*)$")"
 RUN DEBIAN_FRONTEND=noninteractive apt-get -y install mysql-server > /dev/null
 
 RUN mv /etc/mysql/my.cnf /etc/mysql/my.cnf.orig
@@ -29,6 +30,7 @@ RUN rm -rf /ssd/mysql
 RUN rm -rf /ssd/log/mysql
 RUN cp -R -p /var/lib/mysql /ssd/
 RUN cp -R -p /var/log/mysql /ssd/log
+RUN mkdir -p /var/run/mysqld
 
 # It may seem weird that we call `service mysql start` several times, but the RUN
 # directive is a 1-time operation for building this image. Subsequent RUN calls

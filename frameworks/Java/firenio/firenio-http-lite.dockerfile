@@ -14,12 +14,10 @@ CMD java                       \
     -Dframe=16                 \
     -DreadBuf=512              \
     -Dpool=true                \
-    -Ddirect=true              \
-    -Dinline=true              \
     -Dlevel=1                  \
     -Dread=false               \
-    -Depoll=true               \
+    -Depoll=false               \
     -Dnodelay=true             \
     -Dcachedurl=true           \
-    -DunsafeBuf=true           \
+    -DunsafeBuf=false           \
     -jar /firenio/target/firenio-example-0.1-jar-with-dependencies.jar

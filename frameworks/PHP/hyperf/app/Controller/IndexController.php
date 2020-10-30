@@ -15,6 +15,9 @@ namespace App\Controller;
 use App\Model\Fortune;
 use App\Model\World;
 use App\Render;
+use Hyperf\DbConnection\Db;
+use Hyperf\Di\Annotation\Inject;
+use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Contract\ResponseInterface;
@@ -24,12 +27,25 @@ use Hyperf\HttpServer\Contract\ResponseInterface;
  */
 class IndexController
 {
+
+    /**
+     * @Inject()
+     * @var Render
+     */
+    private $render;
+
+    /**
+     * @Inject()
+     * @var ResponseInterface
+     */
+    private $response;
+
     /**
      * @GetMapping(path="/json")
      */
     public function json()
     {
-        return ['message' => 'Hello, World!'];
+        return $this->response->json(['message' => 'Hello, World!']);
     }
 
     /**
@@ -37,28 +53,53 @@ class IndexController
      */
     public function db()
     {
-        return World::find(random_int(1, 10000));
+        return $this->response->json(World::find(random_int(1, 10000)));
+    }
+
+    /**
+     * @GetMapping(path="/raw-db")
+     */
+    public function rawDb()
+    {
+        return $this->response->json(Db::select('SELECT id, randomNumber FROM World WHERE id = ?', [random_int(1, 10000)]));
     }
 
     /**
      * @GetMapping(path="/queries/[{queries}]")
      */
-    public function queries($queries = 1, ResponseInterface $response)
+    public function queries($queries = 1)
     {
         $queries = $this->clamp($queries);
 
         $rows = [];
+
         while ($queries--) {
             $rows[] = World::find(random_int(1, 10000));
         }
 
-        return $response->json($rows);
+        return $this->response->json($rows);
+    }
+
+    /**
+     * @GetMapping(path="/raw-queries/[{queries}]")
+     */
+    public function rawQueries($queries = 1)
+    {
+        $queries = $this->clamp($queries);
+
+        $rows = [];
+
+        while ($queries--) {
+            $rows[] = Db::selectOne('SELECT id, randomNumber FROM World WHERE id = ?', [random_int(1, 10000)]);
+        }
+
+        return $this->response->json($rows);
     }
 
     /**
      * @GetMapping(path="/fortunes")
      */
-    public function fortunes(Render $render)
+    public function fortunes()
     {
         $rows = Fortune::all();
 
@@ -69,13 +110,37 @@ class IndexController
         $rows->add($insert);
         $rows = $rows->sortBy('message');
 
-        return $render->render('fortunes', ['rows' => $rows]);
+        return $this->render->render('fortunes', ['rows' => $rows]);
+    }
+
+    /**
+     * @GetMapping(path="/micro-fortunes")
+     */
+    public function microFortunes()
+    {
+        $rows = Db::select('SELECT id, message FROM Fortune');
+
+        $fortune = [];
+        foreach ($rows ?? [] as $row) {
+            $fortune[$row->id] = $row->message;
+        }
+        $fortune[0] = 'Additional fortune added at request time.';
+        asort($fortune);
+
+        $html = '<!DOCTYPE html><html><head><title>Fortunes</title></head><body><table><tr><th>id</th><th>message</th></tr>';
+        foreach ($fortune as $id => $message) {
+            $message = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+            $html .= "<tr><td>{$id}</td><td>{$message}</td></tr>";
+        }
+
+        $html .= '</table></body></html>';
+        return $this->response->withAddedHeader('content-type', 'text/html; charset=utf-8')->withBody(new SwooleStream($html));
     }
 
     /**
      * @GetMapping(path="/updates/[{queries}]")
      */
-    public function updates($queries = 1, ResponseInterface $response)
+    public function updates($queries = 1)
     {
         $queries = $this->clamp($queries);
 
@@ -85,11 +150,30 @@ class IndexController
             $row = World::find(random_int(1, 10000));
             $row->randomNumber = random_int(1, 10000);
             $row->save();
-
             $rows[] = $row;
         }
 
-        return $response->json($rows);
+        return $this->response->json($rows);
+    }
+
+    /**
+     * @GetMapping(path="/raw-updates/[{queries}]")
+     */
+    public function rawUpdates($queries = 1)
+    {
+        $queries = $this->clamp($queries);
+
+        $rows = [];
+
+        while ($queries--) {
+            $row = Db::selectOne('SELECT id, randomNumber FROM World WHERE id = ?', [$id = random_int(1, 10000)]);
+            $rand = random_int(1, 10000);
+            $row->randomNumber = $rand;
+            Db::update('UPDATE World SET randomNumber = ? WHERE id = ?', [$rand, $id]);
+            $rows[] = $row;
+        }
+
+        return $this->response->json($rows);
     }
 
     /**
@@ -97,7 +181,7 @@ class IndexController
      */
     public function plaintext()
     {
-        return 'Hello, World!';
+        return $this->response->raw('Hello, World!');
     }
 
     private function clamp($value): int

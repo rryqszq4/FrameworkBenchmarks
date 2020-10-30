@@ -1,4 +1,4 @@
-FROM hseeberger/scala-sbt:8u212_2.13.0_1.2.8
+FROM hseeberger/scala-sbt:8u265_1.3.13_2.13.3
 
 WORKDIR /akka-http
 

@@ -8,6 +8,7 @@ using System.Text;
 using BeetleX.Buffers;
 using SpanJson;
 using System.Collections.Generic;
+using BeetleX.EventArgs;
 
 namespace Benchmarks
 {
@@ -59,12 +60,18 @@ namespace Benchmarks
         }
 
 
-      
+        public async Task<object> updates(int queries, IHttpContext context)
+        {
+            queries = queries < 1 ? 1 : queries > 500 ? 500 : queries;
+            var result = await GetDB(context).LoadMultipleUpdatesRows(queries);
+            return new SpanJsonResult(result);
+        }
+
 
         [NotAction]
         public void Init(HttpApiServer server, string path)
         {
-           
+
         }
     }
 
@@ -77,7 +84,7 @@ namespace Benchmarks
 
         private HttpApiServer mApiServer;
 
-        public virtual Task StartAsync(CancellationToken cancellationToken)
+        public async virtual Task StartAsync(CancellationToken cancellationToken)
         {
             plaintextResult = new StringBytes(_helloWorldPayload);
             mApiServer = new HttpApiServer();
@@ -90,11 +97,20 @@ namespace Benchmarks
             mApiServer.Options.LogToConsole = true;
             mApiServer.Options.PrivateBufferPool = true;
             mApiServer.Register(typeof(Program).Assembly);
-            mApiServer.HttpConnected += (o, e) => {
+            HeaderTypeFactory.SERVAR_HEADER_BYTES = Encoding.ASCII.GetBytes("Server: TFB\r\n");
+            mApiServer.HttpConnected += (o, e) =>
+            {
                 e.Session["DB"] = new RawDb(new ConcurrentRandom(), Npgsql.NpgsqlFactory.Instance);
             };
             mApiServer.Open();
-            return Task.CompletedTask;
+            RawDb._connectionString = "Server=tfb-database;Database=hello_world;User Id=benchmarkdbuser;Password=benchmarkdbpass;Maximum Pool Size=256;NoResetOnClose=true;Enlist=false;Max Auto Prepare=3";
+            //RawDb._connectionString = "Server=192.168.2.19;Database=hello_world;User Id=benchmarkdbuser;Password=benchmarkdbpass;Maximum Pool Size=256;NoResetOnClose=true;Enlist=false;Max Auto Prepare=3";
+            System.Net.Http.HttpClient client = new System.Net.Http.HttpClient();
+            var response = await client.GetAsync("http://localhost:8080/json");
+            mApiServer.BaseServer.Log(LogType.Info, null, $"Get josn {response.StatusCode}");
+            response = await client.GetAsync("http://localhost:8080/plaintext");
+            mApiServer.BaseServer.Log(LogType.Info, null, $"Get plaintext {response.StatusCode}");
+
         }
 
         public virtual Task StopAsync(CancellationToken cancellationToken)
@@ -125,5 +141,7 @@ namespace Benchmarks
         {
             JsonSerializer.NonGeneric.Utf8.SerializeAsync(Data, stream);
         }
+
+
     }
 }

@@ -2,16 +2,16 @@ FROM ubuntu:18.04
 
 COPY ./ ./
 
-RUN  apt update -yqq && \
+RUN  apt-get update -yqq && \
      apt-get install -yqq software-properties-common && \
-	 apt install -yqq sudo curl wget cmake locales git \
+	 apt-get install -yqq sudo curl wget cmake locales git \
      openssl libssl-dev \
      libjsoncpp-dev \
      uuid-dev libreadline-dev libbison-dev flex \
      zlib1g-dev && \
      add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
-	 apt update -yqq && \
-	 apt install -yqq gcc-8 g++-8
+	 apt-get update -yqq && \
+	 apt-get install -yqq gcc-8 g++-8
 
 RUN locale-gen en_US.UTF-8
 
@@ -26,6 +26,7 @@ ENV RANLIB=gcc-ranlib-8
 
 ENV IROOT=/install
 ENV DROGON_ROOT=$IROOT/drogon
+ENV MIMALLOC_ROOT=$IROOT/mimalloc
 ENV PG_ROOT=$IROOT/postgres-batch_mode_ubuntu
 ENV TEST_PATH=/drogon_benchmark/build
 
@@ -44,13 +45,24 @@ RUN git clone https://github.com/an-tao/drogon
 
 WORKDIR $DROGON_ROOT
 
-RUN git checkout aa26e9a90388b6a6fe5356e2d12b6f6091c82818
+RUN git checkout 668533fbbd20eb9c493841b0e1067097aadf0342
 RUN git submodule update --init
 RUN mkdir build
 
 WORKDIR $DROGON_ROOT/build
 
 RUN cmake -DCMAKE_BUILD_TYPE=release ..
+RUN make && make install
+
+WORKDIR $IROOT
+
+RUN git clone https://github.com/microsoft/mimalloc
+
+WORKDIR $MIMALLOC_ROOT
+RUN git checkout v1.6.2 -b v1.6.2
+RUN mkdir -p out/release
+WORKDIR $MIMALLOC_ROOT/out/release
+RUN cmake ../..
 RUN make && make install
 
 WORKDIR $TEST_PATH

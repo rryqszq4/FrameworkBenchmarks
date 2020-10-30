@@ -1,8 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
-    <LangVersion>preview</LangVersion>
+    <TargetFramework>net5.0</TargetFramework>
     <DebugType>portable</DebugType>
     <AssemblyName>App</AssemblyName>
     <OutputType>Exe</OutputType>
@@ -10,10 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Dapper" Version="1.60.6" />
-    <PackageReference Include="Giraffe" Version="3.6.0" />
-    <PackageReference Include="Npgsql" Version="4.0.9" />
-    <PackageReference Update="FSharp.Core" Version="4.7" />
+    <PackageReference Include="Dapper" Version="2.0.35" />
+    <PackageReference Include="Giraffe" Version="5.0.0-alpha-003" />
+    <PackageReference Include="Npgsql" Version="5.0.0-alpha1" />
+    <PackageReference Update="FSharp.Core" Version="5.0.0-beta.20417.1" />
   </ItemGroup>
 
   <ItemGroup>

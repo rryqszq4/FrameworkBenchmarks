@@ -2,52 +2,61 @@
 
 namespace App;
 
+use App\Swoole\EntityManagerHandler;
+use App\Swoole\SrandStartHandler;
+use K911\Swoole\Server\RequestHandler\RequestHandlerInterface;
+use K911\Swoole\Server\WorkerHandler\WorkerStartHandlerInterface;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
-use Symfony\Component\Config\Loader\LoaderInterface;
-use Symfony\Component\Config\Resource\FileResource;
+use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Kernel as BaseKernel;
-use Symfony\Component\Routing\RouteCollectionBuilder;
+use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 
-class Kernel extends BaseKernel
+class Kernel extends BaseKernel implements CompilerPassInterface
 {
     use MicroKernelTrait;
 
-    private const CONFIG_EXTS = '.{php,xml,yaml,yml}';
-
-    public function registerBundles(): iterable
+    protected function configureContainer(ContainerConfigurator $container): void
     {
-        $contents = require $this->getProjectDir().'/config/bundles.php';
-        foreach ($contents as $class => $envs) {
-            if ($envs[$this->environment] ?? $envs['all'] ?? false) {
-                yield new $class();
-            }
+        $container->parameters()->set('container.dumper.inline_factories', true);
+        $container->parameters()->set('container.dumper.inline_class_loader', true);
+
+        $container->import('../config/{packages}/*.yaml');
+        $container->import('../config/{packages}/'.$this->environment.'/*.yaml');
+        $container->import('../config/{packages}/'.$this->environment.'/*.php');
+        $container->import('../config/{services}.yaml');
+        $container->import('../config/{services}_'.$this->environment.'.yaml');
+    }
+
+    protected function configureRoutes(RoutingConfigurator $routes): void
+    {
+        $routes->import('../config/{routes}/'.$this->environment.'/*.yaml');
+        $routes->import('../config/{routes}/*.yaml');
+        $routes->import('../config/{routes}.yaml');
+    }
+
+    public function process(ContainerBuilder $container)
+    {
+        if ($this->environment !== 'swoole') {
+            return;
         }
-    }
 
-    public function getProjectDir(): string
-    {
-        return \dirname(__DIR__);
-    }
+        $container->register(EntityManagerHandler::class, EntityManagerHandler::class)
+            ->addArgument(new Reference(EntityManagerHandler::class.'.inner'))
+            ->setAutowired(true)
+            ->setAutoconfigured(true)
+            ->setPublic(false)
+            ->setDecoratedService(RequestHandlerInterface::class, null, -20)
+        ;
 
-    protected function configureContainer(ContainerBuilder $container, LoaderInterface $loader): void
-    {
-        $container->addResource(new FileResource($this->getProjectDir().'/config/bundles.php'));
-        $container->setParameter('container.dumper.inline_class_loader', true);
-        $confDir = $this->getProjectDir().'/config';
-
-        $loader->load($confDir.'/{packages}/*'.self::CONFIG_EXTS, 'glob');
-        $loader->load($confDir.'/{packages}/'.$this->environment.'/**/*'.self::CONFIG_EXTS, 'glob');
-        $loader->load($confDir.'/{services}'.self::CONFIG_EXTS, 'glob');
-        $loader->load($confDir.'/{services}_'.$this->environment.self::CONFIG_EXTS, 'glob');
-    }
-
-    protected function configureRoutes(RouteCollectionBuilder $routes): void
-    {
-        $confDir = $this->getProjectDir().'/config';
-
-        $routes->import($confDir.'/{routes}/'.$this->environment.'/**/*'.self::CONFIG_EXTS, '/', 'glob');
-        $routes->import($confDir.'/{routes}/*'.self::CONFIG_EXTS, '/', 'glob');
-        $routes->import($confDir.'/{routes}'.self::CONFIG_EXTS, '/', 'glob');
+        $container->register(SrandStartHandler::class, SrandStartHandler::class)
+            ->addArgument(new Reference(SrandStartHandler::class.'.inner'))
+            ->setAutowired(true)
+            ->setAutoconfigured(true)
+            ->setPublic(false)
+            ->setDecoratedService(WorkerStartHandlerInterface::class)
+        ;
     }
 }
